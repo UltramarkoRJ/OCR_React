@@ -1,4 +1,4 @@
-import React, {useEffect, useContext} from "react";
+import React, { useEffect, useContext } from "react";
 import { useObserver } from "mobx-react";
 import Slider from "../Slider";
 import useStore from "../../hooks/useStore";
@@ -14,27 +14,27 @@ const ToolbarDrawing: React.FC = () => {
   } = useContext(DataContext);
   const { drawingStore, imageStore, canvasStore } = useStore();
 
-  useEffect(()=>{
-    drawingStore.setColorCode("255,255,255")
+  useEffect(() => {
+    drawingStore.setColorCode("255,255,255");
     drawingStore.setOpacity(1.0);
-  },[])
+  }, []);
 
   const draw = async () => {
-    if(!imageStore.url || !canvasStore.getDataUrl()) return;
-    setLoader(false)
-    let responseData = await fetch(`${baseURL}/inpaint`, {
+    if (!imageStore.url || !canvasStore.getDataUrl()) return;
+    setLoader(false);
+    let responseData = await fetch(`${process.env.REACT_APP_BASE_URL}/inpaint`, {
       method: "POST",
       headers: { 
-        'Content-Type': 'multipart/x-www-form-urlencoded'
-        },
-      body: JSON.stringify({image: imageStore.url, mask: canvasStore.getDataUrl()})
-    })
-     const resonse = await responseData.json()
+        'Content-Type': 'application/json'
+      },
+      body: JSON.stringify({ image: imageStore.url, mask: canvasStore.getDataUrl() })
+    });
+    const response = await responseData.json();
     setLoader(true);
-    setImageUrl(resonse.image_base64);
-    setNewImage(resonse.image_base64);
-    setImageText(resonse.result);
-  }
+    setImageUrl(response.image_base64);
+    setNewImage(response.image_base64);
+    setImageText(response.result);
+  };
 
   return useObserver(() => (
     <div className="toolbar__content">
@@ -50,7 +50,7 @@ const ToolbarDrawing: React.FC = () => {
         max={150}
         callback={value => drawingStore.setLineWidth(value)}
       />
-      <button className="btn btn-secondary" onClick={()=> draw()}>Inpaint</button>
+      <button className="btn btn-secondary" onClick={() => draw()}>Inpaint</button>
 
       {/* <Slider
         title="Opacity"
