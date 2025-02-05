@@ -18,9 +18,11 @@ class InpaintModel:
 
     def __init__(self, device, **kwargs):
         """
+        Initialize the inpainting model with the given device and additional arguments.
 
         Args:
-            device:
+            device: The device to run the model on (e.g., 'cpu', 'cuda').
+            kwargs: Additional arguments for model initialization.
         """
         device = switch_mps_device(self.name, device)
         self.device = device
@@ -28,23 +30,53 @@ class InpaintModel:
 
     @abc.abstractmethod
     def init_model(self, device, **kwargs):
+        """
+        Abstract method to initialize the model. Must be implemented by subclasses.
+
+        Args:
+            device: The device to run the model on (e.g., 'cpu', 'cuda').
+            kwargs: Additional arguments for model initialization.
+        """
         ...
 
     @staticmethod
     @abc.abstractmethod
     def is_downloaded() -> bool:
+        """
+        Abstract method to check if the model is downloaded. Must be implemented by subclasses.
+
+        Returns:
+            bool: True if the model is downloaded, False otherwise.
+        """
         ...
 
     @abc.abstractmethod
     def forward(self, image, mask, config: Config):
-        """Input images and output images have same size
-        images: [H, W, C] RGB
-        masks: [H, W, 1] 255 为 masks 区域
-        return: BGR IMAGE
+        """
+        Abstract method to perform inpainting on the given image and mask. Must be implemented by subclasses.
+
+        Args:
+            image: The input image as a numpy array (H, W, C) in RGB format.
+            mask: The input mask as a numpy array (H, W) with 255 indicating the masked area.
+            config: Configuration object for the inpainting process.
+
+        Returns:
+            numpy.ndarray: The inpainted image in BGR format.
         """
         ...
 
     def _pad_forward(self, image, mask, config: Config):
+        """
+        Pad the input image and mask to the required size and perform inpainting.
+
+        Args:
+            image: The input image as a numpy array (H, W, C) in RGB format.
+            mask: The input mask as a numpy array (H, W) with 255 indicating the masked area.
+            config: Configuration object for the inpainting process.
+
+        Returns:
+            numpy.ndarray: The inpainted image in BGR format.
+        """
         origin_height, origin_width = image.shape[:2]
         pad_image = pad_img_to_modulo(
             image, mod=self.pad_mod, square=self.pad_to_square, min_size=self.min_size
@@ -65,14 +97,32 @@ class InpaintModel:
         return result
 
     def forward_post_process(self, result, image, mask, config):
+        """
+        Post-process the inpainted result, image, and mask.
+
+        Args:
+            result: The inpainted result as a numpy array (H, W, C) in BGR format.
+            image: The input image as a numpy array (H, W, C) in RGB format.
+            mask: The input mask as a numpy array (H, W) with 255 indicating the masked area.
+            config: Configuration object for the inpainting process.
+
+        Returns:
+            tuple: The post-processed result, image, and mask.
+        """
         return result, image, mask
 
     @torch.no_grad()
     def __call__(self, image, mask, config: Config):
         """
-        images: [H, W, C] RGB, not normalized
-        masks: [H, W]
-        return: BGR IMAGE
+        Perform inpainting on the given image and mask.
+
+        Args:
+            image: The input image as a numpy array (H, W, C) in RGB format.
+            mask: The input mask as a numpy array (H, W) with 255 indicating the masked area.
+            config: Configuration object for the inpainting process.
+
+        Returns:
+            numpy.ndarray: The inpainted image in BGR format.
         """
         inpaint_result = None
         logger.info(f"hd_strategy: {config.hd_strategy}")
@@ -125,14 +175,16 @@ class InpaintModel:
 
     def _crop_box(self, image, mask, box, config: Config):
         """
+        Crop the input image and mask based on the given bounding box.
 
         Args:
-            image: [H, W, C] RGB
-            mask: [H, W, 1]
-            box: [left,top,right,bottom]
+            image: The input image as a numpy array (H, W, C) in RGB format.
+            mask: The input mask as a numpy array (H, W) with 255 indicating the masked area.
+            box: The bounding box as a list [left, top, right, bottom].
+            config: Configuration object for the inpainting process.
 
         Returns:
-            BGR IMAGE, (l, r, r, b)
+            tuple: The cropped image, cropped mask, and the bounding box coordinates.
         """
         box_h = box[3] - box[1]
         box_w = box[2] - box[0]
@@ -176,11 +228,30 @@ class InpaintModel:
         return crop_img, crop_mask, [l, t, r, b]
 
     def _calculate_cdf(self, histogram):
+        """
+        Calculate the cumulative distribution function (CDF) from the given histogram.
+
+        Args:
+            histogram: The input histogram as a numpy array.
+
+        Returns:
+            numpy.ndarray: The normalized CDF.
+        """
         cdf = histogram.cumsum()
         normalized_cdf = cdf / float(cdf.max())
         return normalized_cdf
 
     def _calculate_lookup(self, source_cdf, reference_cdf):
+        """
+        Calculate the lookup table for histogram matching.
+
+        Args:
+            source_cdf: The CDF of the source image.
+            reference_cdf: The CDF of the reference image.
+
+        Returns:
+            numpy.ndarray: The lookup table.
+        """
         lookup_table = np.zeros(256)
         lookup_val = 0
         for source_index, source_val in enumerate(source_cdf):
@@ -192,6 +263,17 @@ class InpaintModel:
         return lookup_table
 
     def _match_histograms(self, source, reference, mask):
+        """
+        Match the histograms of the source and reference images.
+
+        Args:
+            source: The source image as a numpy array (H, W, C).
+            reference: The reference image as a numpy array (H, W, C).
+            mask: The input mask as a numpy array (H, W) with 255 indicating the masked area.
+
+        Returns:
+            numpy.ndarray: The histogram-matched image.
+        """
         transformed_channels = []
         for channel in range(source.shape[-1]):
             source_channel = source[:, :, channel]
@@ -214,6 +296,17 @@ class InpaintModel:
         return result
 
     def _apply_cropper(self, image, mask, config: Config):
+        """
+        Apply cropping to the input image and mask based on the configuration.
+
+        Args:
+            image: The input image as a numpy array (H, W, C) in RGB format.
+            mask: The input mask as a numpy array (H, W) with 255 indicating the masked area.
+            config: Configuration object for the inpainting process.
+
+        Returns:
+            tuple: The cropped image, cropped mask, and the bounding box coordinates.
+        """
         img_h, img_w = image.shape[:2]
         l, t, w, h = (
             config.croper_x,
@@ -235,14 +328,16 @@ class InpaintModel:
 
     def _run_box(self, image, mask, box, config: Config):
         """
+        Run the inpainting process on the cropped image and mask based on the bounding box.
 
         Args:
-            image: [H, W, C] RGB
-            mask: [H, W, 1]
-            box: [left,top,right,bottom]
+            image: The input image as a numpy array (H, W, C) in RGB format.
+            mask: The input mask as a numpy array (H, W) with 255 indicating the masked area.
+            box: The bounding box as a list [left, top, right, bottom].
+            config: Configuration object for the inpainting process.
 
         Returns:
-            BGR IMAGE
+            tuple: The inpainted image and the bounding box coordinates.
         """
         crop_img, crop_mask, [l, t, r, b] = self._crop_box(image, mask, box, config)
 
@@ -253,9 +348,15 @@ class DiffusionInpaintModel(InpaintModel):
     @torch.no_grad()
     def __call__(self, image, mask, config: Config):
         """
-        images: [H, W, C] RGB, not normalized
-        masks: [H, W]
-        return: BGR IMAGE
+        Perform inpainting on the given image and mask using diffusion-based inpainting.
+
+        Args:
+            image: The input image as a numpy array (H, W, C) in RGB format.
+            mask: The input mask as a numpy array (H, W) with 255 indicating the masked area.
+            config: Configuration object for the inpainting process.
+
+        Returns:
+            numpy.ndarray: The inpainted image in BGR format.
         """
         # boxes = boxes_from_mask(mask)
         if config.use_croper:
@@ -269,6 +370,17 @@ class DiffusionInpaintModel(InpaintModel):
         return inpaint_result
 
     def _scaled_pad_forward(self, image, mask, config: Config):
+        """
+        Pad the input image and mask to the required size and perform inpainting using scaling.
+
+        Args:
+            image: The input image as a numpy array (H, W, C) in RGB format.
+            mask: The input mask as a numpy array (H, W) with 255 indicating the masked area.
+            config: Configuration object for the inpainting process.
+
+        Returns:
+            numpy.ndarray: The inpainted image in BGR format.
+        """
         longer_side_length = int(config.sd_scale * max(image.shape[:2]))
         origin_size = image.shape[:2]
         downsize_image = resize_max_size(image, size_limit=longer_side_length)

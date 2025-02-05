@@ -12,12 +12,31 @@ models = {
 
 class ModelManager:
     def __init__(self, name: str, device: torch.device, **kwargs):
+        """
+        Initialize the ModelManager with the given model name, device, and additional arguments.
+
+        Args:
+            name (str): The name of the model.
+            device (torch.device): The device to run the model on.
+            kwargs: Additional arguments for model initialization.
+        """
         self.name = name
         self.device = device
         self.kwargs = kwargs
         self.model = self.init_model(name, device, **kwargs)
 
     def init_model(self, name: str, device, **kwargs):
+        """
+        Initialize the model with the given name and device.
+
+        Args:
+            name (str): The name of the model.
+            device (torch.device): The device to run the model on.
+            kwargs: Additional arguments for model initialization.
+
+        Returns:
+            The initialized model.
+        """
         if name in models:
             model = models[name](device, **kwargs)
         else:
@@ -25,15 +44,44 @@ class ModelManager:
         return model
 
     def is_downloaded(self, name: str) -> bool:
+        """
+        Check if the model with the given name is downloaded.
+
+        Args:
+            name (str): The name of the model.
+
+        Returns:
+            bool: True if the model is downloaded, False otherwise.
+        """
         if name in models:
             return models[name].is_downloaded()
         else:
             raise NotImplementedError(f"Not supported model: {name}")
 
     def __call__(self, image, mask, config: Config):
-        return self.model(image, mask, config)
+        """
+        Perform inpainting on the given image and mask using the model.
+
+        Args:
+            image: The input image as a numpy array (H, W, C) in RGB format.
+            mask: The input mask as a numpy array (H, W) with 255 indicating the masked area.
+            config: Configuration object for the inpainting process.
+
+        Returns:
+            numpy.ndarray: The inpainted image in BGR format.
+        """
+        try:
+            return self.model(image, mask, config)
+        except Exception as e:
+            raise RuntimeError(f"Error during model call: {e}")
 
     def switch(self, new_name: str):
+        """
+        Switch to a new model with the given name.
+
+        Args:
+            new_name (str): The name of the new model.
+        """
         if new_name == self.name:
             return
         try:

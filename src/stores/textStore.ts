@@ -18,12 +18,13 @@ interface ITextStyle {
   underline: boolean | undefined;
   fontStyle: FontStyle;
   textAlign: string | undefined;
-  fontFamily: string,
+  fontFamily: string;
   fontSize: number;
   lineHeight: number;
   fontColorCode: string;
   isBgTransparent: boolean;
   bgColorCode: string;
+} {
 }
 
 export let TextСonstants = {
@@ -39,8 +40,8 @@ const defaultStyles: ITextStyle = {
   fontWeight: "normal",
   underline: false,
   fontStyle: "normal",
-  fontFamily: "Arial",
   textAlign: "left",
+  fontFamily: "Arial",
   fontSize: TextСonstants.INIT_FONT_SIZE,
   lineHeight: TextСonstants.MIN_LINE_HEIGHT,
   fontColorCode: "255, 255, 255",
@@ -53,13 +54,12 @@ type FontWeight = string | number | undefined;
 type FontFamily = string | "Arial" | "Roboto";
 
 export class TextStore {
-  readonly OBJ_NAME: ModeName = "text";
-  
+
   @observable fontWeight: FontWeight = defaultStyles.fontWeight;
-  @observable fontFamily: FontFamily = defaultStyles.fontFamily;
   @observable underline: boolean | undefined = defaultStyles.underline;
   @observable fontStyle: FontStyle = defaultStyles.fontStyle;
   @observable textAlign: string | undefined = defaultStyles.textAlign;
+  @observable fontFamily: string = defaultStyles.fontFamily;
   @observable fontSize: number = defaultStyles.fontSize;
   @observable lineHeight: number = defaultStyles.lineHeight;
   @observable fontColorCode: string = defaultStyles.fontColorCode;
@@ -68,8 +68,9 @@ export class TextStore {
 
   private readonly canvas: fabric.Canvas;
   private readonly objectManager: ObjectManagerStore;
-  private readonly listeners: any;
   private text: ITextObject;
+  private readonly listeners: any;
+  readonly OBJ_NAME: ModeName = "text";
   private reactions: Reactions = null;
   constructor(private readonly root: RootStore) {
     this.canvas = root.canvasStore.instance;
@@ -80,13 +81,124 @@ export class TextStore {
     };
     this.objectManager.registerObject(this.OBJ_NAME);
     root.canvasStore.registerSessionManager(this.OBJ_NAME, this);
+
+    reaction(
+      () => this.text,
+      text => {
+        this.updateTextStyles(text);
+      }
+    );
   }
-  
-  @action setText(t: any): any {
+
+  @action
+
+  private resetStyle(): void {
+    this.setTextStyle(defaultStyles);
+    this.setFontSize(defaultStyles.fontSize);
+  } setText(t: any): any {
     TextСonstants.INIT_TEXT = t;
   }
 
-  @action addText(textP: any, x: any, y: any, fontSize: any): any {
+  @action
+
+  toggleFontWeight(): void {
+    if (this.fontWeight === "normal") {
+      this.setFontWeight("bold");
+      return;
+    }
+    this.setFontWeight("normal");
+  }
+
+  @action
+
+  toggleTextDecoration(): void {
+    this.setTextDecoration(!this.underline);
+  }
+
+  @action
+
+  toggleFontStyle(): void {
+    if (this.fontStyle === "normal") {
+      this.setFontStyle("italic");
+      return;
+    }
+    this.setFontStyle("normal");
+  }
+
+  @action
+
+  private setTextStyle(style: ITextStyle): void {
+    this.setFontWeight(style.fontWeight);
+    this.setFontFamily(style.fontFamily);
+    this.setTextDecoration(style.underline);
+    this.setFontStyle(style.fontStyle);
+    this.setTextAlign(style.textAlign);
+    this.updateFontSize(style.fontSize);
+    this.setLineHeight(style.lineHeight);
+    this.setFontColor(style.fontColorCode);
+    this.setBackgroundColor(style.bgColorCode);
+    this.setBackgroundTransparency(style.isBgTransparent);
+  }
+
+  @action private setFontWeight(fontWeight: FontWeight): void {
+    this.fontWeight = fontWeight;
+    this.text.set({fontWeight});
+    this.canvas.renderAll();
+  }
+
+  @action
+  private updateTextStyles(text: ITextObject) {
+    this.fontWeight = text.fontWeight;
+    this.underline = text.underline;
+    this.fontStyle = text.fontStyle;
+    this.textAlign = text.textAlign;
+    this.fontFamily = text.fontFamily as string;
+    this.fontSize = text.fontSize;
+    this.lineHeight = text.lineHeight;
+    this.fontColorCode = text.fontColorCode;
+    this.isBgTransparent = text.isBgTransparent;
+    this.bgColorCode = text.bgColorCode;
+  }
+
+  @action setFontFamily(fontFamily: string): void {
+    this.fontFamily = fontFamily;
+    this.text.set({fontFamily});
+    this.canvas.renderAll();
+  }
+
+  @action private setTextDecoration(underline: boolean | undefined): void {
+    this.underline = underline;
+    this.text.set({underline});
+    this.canvas.renderAll();
+  }
+
+  @action
+
+  toggleBackground(): void {
+    this.setBackgroundTransparency(!this.isBgTransparent);
+  }
+
+  @action private setFontStyle(fontStyle: FontStyle): void {
+    this.fontStyle = fontStyle;
+    this.text.set({fontStyle});
+    this.canvas.renderAll();
+  } setTextAlign(textAlign: string | undefined): void {
+    if (textAlign !== undefined) {
+      this.textAlign = textAlign;
+      this.text.set({textAlign});
+      this.canvas.renderAll();
+    }
+  } private updateFontSize(value: number): void {
+    this.fontSize = value;
+  }
+
+  @action setLineHeight(lineHeight: number | undefined): void {
+    if (lineHeight) {
+      this.lineHeight = lineHeight;
+      this.text.set({lineHeight: 1 + lineHeight / 10});
+      this.canvas.renderAll();
+    }
+  } addText(textP: any, x: any, y: any, fontSize: any): any {
     if(textP) TextСonstants.INIT_TEXT = textP;
     else TextСonstants.INIT_TEXT = "Hello World";
     if(fontSize) defaultStyles.fontSize = fontSize;
@@ -100,44 +212,7 @@ export class TextStore {
       this.text.center().setCoords();
 
     this.objectManager.selectObject(this.text);
-  }
-
-  @action setTextAlign(textAlign: string | undefined): void {
-    if (textAlign !== undefined) {
-      this.textAlign = textAlign;
-      this.text.set({textAlign});
-      this.canvas.renderAll();
-    }
-  }
-
-  @action setFontFamily(fontFamily: string | undefined): void {
-    if (fontFamily !== undefined) {
-      this.fontFamily = fontFamily;
-      this.text.set({fontFamily});
-      this.canvas.renderAll();
-    }
-  }
-
-  @action setFontSize(fontSize: number | undefined): void {
-    if (fontSize) {
-      this.text.scaleX = 1;
-      this.text.scaleY = 1;
-      this.text.defaultFontSize = fontSize;
-      this.text.set({fontSize});
-      this.canvas.renderAll();
-      this.updateFontSize(fontSize);
-    }
-  }
-
-  @action setLineHeight(lineHeight: number | undefined): void {
-    if (lineHeight) {
-      this.lineHeight = lineHeight;
-      this.text.set({lineHeight: 1 + lineHeight / 10});
-      this.canvas.renderAll();
-    }
-  }
-
-  @action setFontColor(rgbCode: string): void {
+  } setFontColor(rgbCode: string): void {
     this.fontColorCode = rgbCode;
     this.text.fontColorCode = rgbCode;
     this.text.set({fill: `rgb(${rgbCode})`});
@@ -147,62 +222,9 @@ export class TextStore {
   @action setBackgroundColor(rgbCode: string): void {
     this.bgColorCode = rgbCode;
     this.text.bgColorCode = rgbCode;
-  }
-
-  toggleFontWeight(): void {
-    if (this.fontWeight === "normal") {
-      this.setFontWeight("bold");
-      return;
-    }
-    this.setFontWeight("normal");
-  }
-
-  toggleTextDecoration(): void {
-    this.setTextDecoration(!this.underline);
-  }
-
-  toggleFontStyle(): void {
-    if (this.fontStyle === "normal") {
-      this.setFontStyle("italic");
-      return;
-    }
-    this.setFontStyle("normal");
-  }
-
-  toggleBackground(): void {
-    this.setBackgroundTransparency(!this.isBgTransparent);
-  }
-
-  @action private setFontWeight(fontWeight: FontWeight): void {
-    this.fontWeight = fontWeight;
-    this.text.set({fontWeight});
-    this.canvas.renderAll();
-  }
-
-  @action private setTextDecoration(underline: boolean | undefined): void {
-    this.underline = underline;
-    this.text.set({underline});
-    this.canvas.renderAll();
-  }
-
-  @action private setFontStyle(fontStyle: FontStyle): void {
-    this.fontStyle = fontStyle;
-    this.text.set({fontStyle});
-    this.canvas.renderAll();
-  }
-
-  @action private setBackgroundTransparency(value: boolean): void {
+  } private setBackgroundTransparency(value: boolean): void {
     this.isBgTransparent = value;
     this.text.isBgTransparent = value;
-  }
-
-  @action private updateFontSize(value: number): void {
-    this.fontSize = value;
-  }
-
-  private resetStyle(): void {
-    this.setTextStyle(defaultStyles);
-    this.setFontSize(defaultStyles.fontSize);
   }
 
   onSessionStart(): void {
@@ -277,7 +299,7 @@ export class TextStore {
 
     this.setTextStyle({
       fontWeight,
-      fontFamily : "Arial",
+      fontFamily,
       underline,
       fontStyle,
       textAlign,
@@ -287,19 +309,15 @@ export class TextStore {
       bgColorCode,
       isBgTransparent,
     });
-  }
-
-  private setTextStyle(style: ITextStyle): void {
-    this.setFontWeight(style.fontWeight);
-    this.setFontFamily(style.fontFamily);
-    this.setTextDecoration(style.underline);
-    this.setFontStyle(style.fontStyle);
-    this.setTextAlign(style.textAlign);
-    this.updateFontSize(style.fontSize);
-    this.setLineHeight(style.lineHeight);
-    this.setFontColor(style.fontColorCode);
-    this.setBackgroundColor(style.bgColorCode);
-    this.setBackgroundTransparency(style.isBgTransparent);
+  } setFontSize(fontSize: number | undefined): void {
+    if (fontSize) {
+      this.text.scaleX = 1;
+      this.text.scaleY = 1;
+      this.text.defaultFontSize = fontSize;
+      this.text.set({fontSize});
+      this.canvas.renderAll();
+      this.updateFontSize(fontSize);
+    }
   }
 
   private createText(): void {
