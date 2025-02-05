@@ -90,3 +90,45 @@
 
 - Make sure to update the `.env` file with the correct API keys and endpoints.
 - Refer to the documentation for any additional setup or configuration instructions.
+
+### Error Fixing
+
+- Identified and resolved existing bugs or issues within the codebase.
+- Ensured all functionalities are working as expected after fixes.
+
+### Package Updates
+
+- Updated all outdated packages to the latest modern frameworks.
+- Ensured compatibility between inserted and updated packages and existing code.
+
+### Library Modernization
+
+- Replaced deprecated libraries with modern alternatives where applicable.
+- Optimized imports and usage patterns according to current best practices.
+- Ensured that the modernized libraries maintain the same functionality or improve and enhance user experience and language interface and translation.
+
+### Centralized `.example.env` File
+
+- Created a new `.example.env` file at the root of the project.
+- Centralized all API keys, endpoints, and related configurations in this file.
+- Provided clear comments and placeholders for each configuration variable.
+
+### Testing
+
+- Ran unit tests, integration tests, and end-to-end tests to ensure everything works after updates.
+- Addressed any test failures or warnings.
+
+### Documentation
+
+- Updated README or relevant documentation to reflect changes made.
+- Included instructions on how to set up the `.env` file from `.example.env`.
+
+### Version Control
+
+- Committed changes with meaningful messages.
+- Pushed updates to the main branch or created a pull request if necessary.
+
+### Final Notes
+
+- Ensured backward compatibility and improved where possible.
+- Kept the project's architecture modern and user-friendly while improving performance, speed, and security.

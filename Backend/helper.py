@@ -14,6 +14,16 @@ from torch.hub import download_url_to_file, get_dir
 
 
 def switch_mps_device(model_name, device):
+    """
+    Switch the device to CPU if the model does not support MPS.
+
+    Args:
+        model_name (str): The name of the model.
+        device (str or torch.device): The device to use.
+
+    Returns:
+        torch.device: The device to use.
+    """
     if model_name not in MPS_SUPPORT_MODELS and (
         device == "mps" or device == torch.device("mps")
     ):
@@ -23,6 +33,15 @@ def switch_mps_device(model_name, device):
 
 
 def get_cache_path_by_url(url):
+    """
+    Get the cache path for a given URL.
+
+    Args:
+        url (str): The URL to get the cache path for.
+
+    Returns:
+        str: The cache path.
+    """
     parts = urlparse(url)
     hub_dir = get_dir()
     model_dir = os.path.join(hub_dir, "checkpoints")
@@ -34,22 +53,54 @@ def get_cache_path_by_url(url):
 
 
 def download_model(url):
+    """
+    Download a model from a given URL.
+
+    Args:
+        url (str): The URL to download the model from.
+
+    Returns:
+        str: The path to the downloaded model.
+    """
     cached_file = get_cache_path_by_url(url)
     if not os.path.exists(cached_file):
-        sys.stderr.write('Downloading: "{}" to {}\n'.format(url, cached_file))
-        hash_prefix = None
-        download_url_to_file(url, cached_file, hash_prefix, progress=True)
+        try:
+            sys.stderr.write('Downloading: "{}" to {}\n'.format(url, cached_file))
+            hash_prefix = None
+            download_url_to_file(url, cached_file, hash_prefix, progress=True)
+        except Exception as e:
+            logger.error(f"Failed to download model from {url}: {e}")
+            raise
     return cached_file
 
 
 def ceil_modulo(x, mod):
+    """
+    Round up a number to the nearest multiple of a given modulus.
+
+    Args:
+        x (int): The number to round up.
+        mod (int): The modulus.
+
+    Returns:
+        int: The rounded number.
+    """
     if x % mod == 0:
         return x
     return (x // mod + 1) * mod
 
 
-def \
-        load_jit_model(url_or_path, device):
+def load_jit_model(url_or_path, device):
+    """
+    Load a JIT model from a given URL or path.
+
+    Args:
+        url_or_path (str): The URL or path to the model.
+        device (str or torch.device): The device to load the model on.
+
+    Returns:
+        torch.jit.ScriptModule: The loaded model.
+    """
     if os.path.exists(url_or_path):
         model_path = url_or_path
     else:
@@ -69,6 +120,17 @@ def \
 
 
 def load_model(model: torch.nn.Module, url_or_path, device):
+    """
+    Load a model from a given URL or path.
+
+    Args:
+        model (torch.nn.Module): The model to load the state dict into.
+        url_or_path (str): The URL or path to the model.
+        device (str or torch.device): The device to load the model on.
+
+    Returns:
+        torch.nn.Module: The loaded model.
+    """
     if os.path.exists(url_or_path):
         model_path = url_or_path
     else:
@@ -79,9 +141,9 @@ def load_model(model: torch.nn.Module, url_or_path, device):
         model.load_state_dict(state_dict, strict=True)
         model.to(device)
         logger.info(f"Load model from: {model_path}")
-    except:
+    except Exception as e:
         logger.error(
-            f"Failed to load {model_path}, delete model and restart lama-cleaner"
+            f"Failed to load {model_path}, delete model and restart lama-cleaner: {e}"
         )
         exit(-1)
     model.eval()
@@ -89,6 +151,16 @@ def load_model(model: torch.nn.Module, url_or_path, device):
 
 
 def numpy_to_bytes(image_numpy: np.ndarray, ext: str) -> bytes:
+    """
+    Convert a numpy array to bytes.
+
+    Args:
+        image_numpy (np.ndarray): The image as a numpy array.
+        ext (str): The file extension.
+
+    Returns:
+        bytes: The image as bytes.
+    """
     data = cv2.imencode(
         f".{ext}",
         image_numpy,
@@ -99,6 +171,17 @@ def numpy_to_bytes(image_numpy: np.ndarray, ext: str) -> bytes:
 
 
 def pil_to_bytes(pil_img, ext: str, exif=None) -> bytes:
+    """
+    Convert a PIL image to bytes.
+
+    Args:
+        pil_img (PIL.Image.Image): The image as a PIL image.
+        ext (str): The file extension.
+        exif (Optional[dict]): The EXIF data.
+
+    Returns:
+        bytes: The image as bytes.
+    """
     with io.BytesIO() as output:
         pil_img.save(output, format=ext, exif=exif, quality=95)
         image_bytes = output.getvalue()
@@ -106,6 +189,17 @@ def pil_to_bytes(pil_img, ext: str, exif=None) -> bytes:
 
 
 def load_img(img_bytes, gray: bool = False, return_exif: bool = False):
+    """
+    Load an image from bytes.
+
+    Args:
+        img_bytes (bytes): The image as bytes.
+        gray (bool): Whether to load the image in grayscale.
+        return_exif (bool): Whether to return the EXIF data.
+
+    Returns:
+        tuple: The image as a numpy array, the alpha channel, and the EXIF data.
+    """
     alpha_channel = None
     image = Image.open(io.BytesIO(img_bytes))
 
@@ -139,6 +233,15 @@ def load_img(img_bytes, gray: bool = False, return_exif: bool = False):
 
 
 def norm_img(np_img):
+    """
+    Normalize an image.
+
+    Args:
+        np_img (np.ndarray): The image as a numpy array.
+
+    Returns:
+        np.ndarray: The normalized image.
+    """
     if len(np_img.shape) == 2:
         np_img = np_img[:, :, np.newaxis]
     np_img = np.transpose(np_img, (2, 0, 1))
@@ -149,7 +252,17 @@ def norm_img(np_img):
 def resize_max_size(
     np_img, size_limit: int, interpolation=cv2.INTER_CUBIC
 ) -> np.ndarray:
-    # Resize image's longer size to size_limit if longer size larger than size_limit
+    """
+    Resize an image to a maximum size.
+
+    Args:
+        np_img (np.ndarray): The image as a numpy array.
+        size_limit (int): The maximum size.
+        interpolation (int): The interpolation method.
+
+    Returns:
+        np.ndarray: The resized image.
+    """
     h, w = np_img.shape[:2]
     if max(h, w) > size_limit:
         ratio = size_limit / max(h, w)
@@ -164,15 +277,16 @@ def pad_img_to_modulo(
     img: np.ndarray, mod: int, square: bool = False, min_size: Optional[int] = None
 ):
     """
+    Pad an image to a multiple of a given modulus.
 
     Args:
-        img: [H, W, C]
-        mod:
-        square: 是否为正方形
-        min_size:
+        img (np.ndarray): The image as a numpy array.
+        mod (int): The modulus.
+        square (bool): Whether to pad the image to a square.
+        min_size (Optional[int]): The minimum size.
 
     Returns:
-
+        np.ndarray: The padded image.
     """
     if len(img.shape) == 2:
         img = img[:, :, np.newaxis]
@@ -199,11 +313,13 @@ def pad_img_to_modulo(
 
 def boxes_from_mask(mask: np.ndarray) -> List[np.ndarray]:
     """
+    Get bounding boxes from a mask.
+
     Args:
-        mask: (h, w, 1)  0~255
+        mask (np.ndarray): The mask as a numpy array.
 
     Returns:
-
+        List[np.ndarray]: The bounding boxes.
     """
     height, width = mask.shape[:2]
     _, thresh = cv2.threshold(mask, 127, 255, 0)
@@ -223,11 +339,13 @@ def boxes_from_mask(mask: np.ndarray) -> List[np.ndarray]:
 
 def only_keep_largest_contour(mask: np.ndarray) -> List[np.ndarray]:
     """
+    Keep only the largest contour in a mask.
+
     Args:
-        mask: (h, w)  0~255
+        mask (np.ndarray): The mask as a numpy array.
 
     Returns:
-
+        List[np.ndarray]: The mask with only the largest contour.
     """
     _, thresh = cv2.threshold(mask, 127, 255, 0)
     contours, _ = cv2.findContours(thresh, cv2.RETR_EXTERNAL, cv2.CHAIN_APPROX_SIMPLE)
