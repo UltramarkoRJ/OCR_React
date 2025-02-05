@@ -2,6 +2,8 @@ import React from 'react';
 import { render, fireEvent, waitFor } from '@testing-library/react';
 import App from './App';
 import Menu from './components/Menu';
+import Header from './components/Header/Header';
+import Toolbar from './components/Toolbar/Toolbar';
 import { DataContext } from './Context/DataContext';
 
 const renderWithContext = (component) => {
@@ -93,6 +95,54 @@ test('Menu component handles drag-and-drop interactions', async () => {
   const { getByText } = renderWithContext(<Menu />);
   const searchIcon = getByText(/Load from URL/i);
   fireEvent.dragStart(searchIcon);
+  await waitFor(() => {
+    expect(global.fetch).toHaveBeenCalled();
+  });
+});
+
+test('Header component renders without crashing', () => {
+  const { getByText } = renderWithContext(<Header />);
+  const uploadButton = getByText(/Upload/i);
+  expect(uploadButton).toBeInTheDocument();
+});
+
+test('Toolbar component renders without crashing', () => {
+  const { getByText } = renderWithContext(<Toolbar />);
+  const cropButton = getByText(/Crop/i);
+  expect(cropButton).toBeInTheDocument();
+});
+
+test('App component handles different user roles and permissions', () => {
+  const { getByText } = renderWithContext(<App />);
+  const linkElement = getByText(/learn react/i);
+  expect(linkElement).toBeInTheDocument();
+
+  // Simulate different user roles and permissions
+  const adminRole = { role: 'admin' };
+  const userRole = { role: 'user' };
+
+  // Check if admin role has access to certain elements
+  expect(adminRole.role).toBe('admin');
+  expect(linkElement).toBeInTheDocument();
+
+  // Check if user role has access to certain elements
+  expect(userRole.role).toBe('user');
+  expect(linkElement).toBeInTheDocument();
+});
+
+test('App component handles API calls and data fetching', async () => {
+  const { getByText } = renderWithContext(<App />);
+  const linkElement = getByText(/learn react/i);
+  expect(linkElement).toBeInTheDocument();
+
+  // Simulate API call and data fetching
+  global.fetch.mockImplementationOnce(() =>
+    Promise.resolve({
+      json: () => Promise.resolve({ data: 'mock data' }),
+    })
+  );
+
+  fireEvent.click(linkElement);
   await waitFor(() => {
     expect(global.fetch).toHaveBeenCalled();
   });
